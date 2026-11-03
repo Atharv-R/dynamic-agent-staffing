@@ -1,0 +1,40 @@
+# Problem rules from the case brief.
+params:
+  capacity: 10          # advertisers one agent supports at once
+  support_days: 60      # length of onboarding support
+  ramp_days: 30         # a new hire's slots open after this many days
+  notice_days: 30       # salary paid after a firing; agents with a slot > this cannot be fired
+  fire_penalty: 0.4     # fraction of annual salary paid on firing
+  uplift: 0.135         # revenue = uplift x projected annual budget
+  max_wait: 60          # unassigned advertisers leave the pool after this many days
+  days_per_year: 365    # daily salary = annual salary / days_per_year
+
+experiment:
+  country: USA
+  train_year: 2023
+  test_year: 2024
+
+policies:
+  baseline:
+    window: 60          # compare mean forecast over today + next `window` days to the training mean
+    hire: [0, 30]       # inclusive integer range
+    fire: [0, 10]
+  lookahead:
+    horizon: 30         # forecast window and "slot frees within" horizon, in days
+    alpha: {start: 0.5, stop: 30.0, num: 60}
+    beta: {start: 0.5, stop: 2.0, num: 7}
+
+forecasters:
+  seasonal_naive: {}
+  seasonal_blend: {weight: 0.8, window: 30}
+  sarima:
+    seasonal_period: 7  # weekly seasonality
+    fourier_order: 3    # annual seasonality as Fourier regressors
+    max_p: 2
+    max_d: 1
+    max_q: 2
+    max_P: 1
+    max_Q: 1
+
+synthetic:
+  seed: 7
