@@ -1,0 +1,4 @@
+# Keep notebooks out of GitHub's language stats: legacy/ is archived reference material and
+# notebooks/ is documentation. Both still display normally.
+legacy/** linguist-vendored
+notebooks/** linguist-documentation
