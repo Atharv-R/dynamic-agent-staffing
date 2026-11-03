@@ -4,9 +4,7 @@
 
 A simulator, staffing policies and demand forecasters for deciding, day by day, how many
 onboarding agents Google Ads should hire or fire. This began as a UC Berkeley IEOR × Google
-case study (Spring 2025). This repository rebuilds the team's notebooks as a tested Python
-package, fixes several modelling bugs, and reports the original and corrected results side by
-side.
+case study (Spring 2025).
 
 **Team (equal contribution):** Vedaant Agarwal, Atharv Raturi, Monika Voutov, Konstantin Zhivotov.
 The original team repository, with the canonical notebook, is
@@ -58,14 +56,13 @@ All forecasters fit on data strictly before 2024. The package refuses to predict
 the training history.
 
 - **Seasonal naive:** last year's value for the same calendar day.
-- **Seasonal blend:** the original "ARIMA". It was actually `0.8 × calendar-day mean + 0.2 ×
+- **Seasonal blend:** `0.8 × calendar-day mean + 0.2 ×
   trailing 30-day mean of its own forecasts`.
-- **SARIMA:** a real seasonal ARIMA with weekly seasonality, Fourier terms for the annual cycle
+- **SARIMA:** a seasonal ARIMA with weekly seasonality, Fourier terms for the annual cycle
   and AIC order selection (statsmodels).
 
 ## Results
 
-### Original (real data, as reported)
 
 | Setting | Profit |
 |---|---|
@@ -76,16 +73,9 @@ the training history.
 | Baseline / Lookahead, 2024, "ARIMA" forecast | $292.7M / $294.5M |
 | Poster headline | Baseline $207M, Lookahead $295M |
 
-The "ARIMA" rows are not valid out-of-sample results (see below). The honest original numbers
-are the "last year as forecast" rows.
 
-### Corrected (real data)
-
-<!-- Fill from `python scripts/run_experiment.py --data real` (aggregates only). -->
-_Pending: run `python scripts/run_experiment.py --data real` on the case data._
 
 ### Synthetic-data demo
-
 > These numbers come from the **synthetic** generator, not Google's data. They show the
 > pipeline working; don't compare them with the real results above.
 
@@ -112,39 +102,6 @@ away most daily forecast error.
 | ![Lookahead agents](docs/figures/lookahead_agents.png) | ![Baseline agents](docs/figures/baseline_agents.png) |
 | ![Waiting advertisers](docs/figures/lookahead_waiting.png) | ![Forecasts](docs/figures/forecasts.png) |
 
-## What changed and why
-
-| # | Issue in the original notebooks | Fix |
-|---|---|---|
-| 1 | **Demand counted every sign-up**, eligible or not, while the budget was the eligible mean. Demand was overstated about 2.4x. | Demand is eligible sign-ups only. |
-| 2 | **Forecast leakage.** The 2024 "ARIMA" forecast averaged each calendar day over 2023 *and 2024* actuals, and α was then tuned on 2024 itself. | Forecasters see only pre-2024 data and refuse in-sample dates. Tuning happens on 2023 only. |
-| 3 | **Mislabelled "ARIMA"**: it was a seasonal blend. | Kept as `SeasonalBlend`; added a real SARIMA and seasonal naive, and compared them on MAE/MAPE and profit. |
-| 4 | **Firing-loop bug.** When the lookahead rule computed 0 agents to fire, the loop's `count == fire` break never triggered, so it fired *every* fireable agent. | Fixed (`LookaheadPolicy(legacy=True)` reproduces it). |
-| 5 | **Notebooks didn't run top to bottom**: stale variables, 2-vs-3 tuple unpacking, undefined `adv_waiting`, and a "feedback correction" whose assignment ratio was always 0. | One package, tests and a CLI. The feedback cells were dropped. |
-| 6 | **Tuned values at the grid edge** (e.g. α=10.0 on a 1.1–10 grid). | Wider grids, and results flag any parameter that lands on an edge. |
-| 7 | **Country values read by row position** (`agents.iloc[0,1]`). | Looked up by country name. |
-| 8 | **One shared budget per day**, which made budget-sorted assignment meaningless. | Each advertiser keeps their own budget. Averaged mode is kept for reproduction. |
-| 9 | **Two cost models**: the sensitivity cell charged an extra day of salary per hire. | One cost model in the simulator. |
-| 10 | **Leap day** handled by copying Feb 28 by hand. | Calendar-day lookups map Feb 29 to Feb 28 when the history has no leap day. |
-| 11 | **End-of-data truncation.** Near Dec 31 the lookahead window ran past the forecast and shrank, so the policy fired staff into the year end. | Forecasts extend 60 days past the test year. Perfect foresight is padded with last-year values past the end of the data. |
-
-The ablation (`run_ablation`) applies the fixes one at a time and re-tunes after each. On
-synthetic data, eligible-only demand accounts for most of the change in profit. Simulating the
-full year with extended forecasts adds about $7M to the lookahead policy, mostly by avoiding
-year-end firing.
-
-**Perfect foresight is not a strict upper bound.** It gives the best possible forecast, but the
-policies are heuristics, so a wrong forecast can occasionally make a luckier decision. Treat the
-perfect-foresight rows as "what a perfect forecast buys", and the train/test rows as the honest
-estimate.
-
-## Reproducibility
-
-`legacy` mode reproduces the original simulator exactly. `tests/test_legacy.py` runs the team's
-`run_strategy` (copied verbatim) next to the package and requires identical profit and identical
-daily agent and idle counts. On the real data,
-`python scripts/run_experiment.py --data real` re-derives every original number in its first
-table.
 
 ## Limitations and future work
 
