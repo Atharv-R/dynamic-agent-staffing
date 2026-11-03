@@ -34,7 +34,9 @@ class Dataset:
     signups: pd.DataFrame
     countries: pd.DataFrame
     source: str
-    _eligible_by_day: dict[str, pd.Series] = field(default_factory=dict, repr=False)
+    _eligible_by_day: dict[str, dict[pd.Timestamp, np.ndarray]] = field(
+        default_factory=dict, repr=False
+    )
 
     @property
     def dates(self) -> pd.DatetimeIndex:
@@ -93,13 +95,14 @@ class Dataset:
             raise KeyError(f"no sign-ups for {country!r}")
         return df
 
-    def _eligible_budgets(self, country: str) -> pd.Series:
+    def _eligible_budgets(self, country: str) -> dict[pd.Timestamp, np.ndarray]:
         if country not in self._eligible_by_day:
             df = self._country(country)
             df = df[df["Eligible"]]
-            self._eligible_by_day[country] = df.groupby("Sign_Up_Date")[
-                "Projected_Annual_Budget"
-            ].agg(lambda s: s.to_numpy(dtype=float))
+            self._eligible_by_day[country] = {
+                date: budgets.to_numpy(dtype=float)
+                for date, budgets in df.groupby("Sign_Up_Date")["Projected_Annual_Budget"]
+            }
         return self._eligible_by_day[country]
 
 
